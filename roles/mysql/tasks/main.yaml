@@ -1,9 +1,3 @@
-- name: configure mysql server
-  hosts: mysql
-  become: yes
-  vars:
-    mysql_root_password: ExpenseApp@1
-  tasks: # under tasks by mentioning - name what we are writing is nothing but modules
   - name: Install MySQL Libraries
     ansible.builtin.pip: # python need to connect to mysql for this it requires this module(pip)
       name: "{{ item }}"
