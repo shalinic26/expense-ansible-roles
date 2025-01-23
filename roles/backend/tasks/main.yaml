@@ -1,0 +1,82 @@
+  - name: Disable current NodeJS 
+    ansible.builtin.command: dnf module disable nodejs -y
+
+  - name: Enable NodeJS 20 Version
+    ansible.builtin.command: dnf module enable nodejs:20 -y
+    
+  - name: Install NodeJS # IMP POINT ---For installations we need NOt write the commands against the module 
+    ansible.builtin.package:
+      #name: nodejs
+      name: "{{ item }}" # ********Here "item" is the keyword for loops*********
+      state: present # IMP POINT - Since we used package module we need to give "present. If we have used dnf module then we need to write as "installed"
+    loop:
+    - nodejs
+    - mysql
+
+  - name: create expense user
+    ansible.builtin.user:
+      name: expense
+
+  - name: create app directory
+    ansible.builtin.file:
+      name: /app
+      state: directory
+
+  - name: download backend code
+    ansible.builtin.get_url:
+      url: https://expense-builds.s3.us-east-1.amazonaws.com/expense-backend-v2.zip
+      dest: /tmp/backend.zip
+
+  - name: Unzip backend code
+    ansible.builtin.unarchive:
+      src: /tmp/backend.zip
+      dest: /app
+      remote_src: yes # this is required as our source is in our backend server but NOT in ansible server
+
+  - name: Install nodejs dependencies i.e. npm
+    community.general.npm:
+      path: /app # Inside app folder when we unzipped our code we get package.json file & at this place we need to install npm
+      # thats why path we are giving as /app for installing npm
+
+  - name: copy backend service from ansible server to backend server
+    ansible.builtin.template:
+      src: backend.service.j2 
+      dest: /etc/systemd/system/backend.service # Here we are even mentioning backend.server at the end becoz 
+      #contents of the backend.service will be directly copied to folder created by us 
+      # by name (backend.service) to destination location of backend server inside the backend.service folder directly
+
+# Now siva says if we run this we will get ERROR as we did not load any schema --BUT WHEN I RAN IT AS SUCCESSFULL dont know why he is saying this
+
+# Before we add schedme to mysql we need to install CL "mysql" to access databases, tables and data
+
+# Going back to above Install Node JS section and modifying the code for incoporating mysql installation
+
+# Once Install NodeJS section is updated with mysql installation, Now we need to load schedme - mysql -h <MYSQL-SERVER-IPADDRESS> -uroot -pExpenseApp@1 < /app/schema/backend.sql
+
+# We need to check ansible documentation for any module is available in ansible for this - mysql.mysql_db: community module we got
+
+
+  - name: install python libs
+    ansible.builtin.pip:
+      name: "{{ item }}"
+      executable: pip3.9 # As we are using ansible 3.9 
+    loop:
+    - PyMySQL
+    - cryptography
+
+
+  - name: import mysql data    # Error came when we ran this code section --- So we will be adding a new python libs instalation code above this section
+    community.mysql.mysql_db:
+      state: import
+      name: all
+      login_user: "{{ MYSQL_USER }}"
+      login_password: "{{ MYSQL_PASSWORD }}"
+      login_host: "{{ MYSQL_HOST }}"
+      target: /app/schema/backend.sql 
+
+  - name: daemon reload and restart service 
+    ansible.builtin.systemd_service:
+      enabled: TRUE # why we need to give this i dint understand
+      state: restarted
+      daemon_reload: TRUE
+      name: backend # why we need to give this i dint understand
