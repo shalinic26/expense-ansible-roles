@@ -1,0 +1,43 @@
+- name: configure mysql server
+  hosts: mysql
+  become: yes
+  vars:
+    mysql_root_password: ExpenseApp@1
+  tasks: # under tasks by mentioning - name what we are writing is nothing but modules
+  - name: Install MySQL Libraries
+    ansible.builtin.pip: # python need to connect to mysql for this it requires this module(pip)
+      name: "{{ item }}"
+      executable: pip3.9 # becoz our python 3.9 was installed 
+    loop:
+    - cryptography
+    - PyMySQL
+
+  - name: install MySQL server # Initially we wrote this task before writing about mysql libraries
+    ansible.builtin.package:
+      name: mysql-server
+      state: present
+
+  - name: start and enable MySQL server # For starting mysql service we need to use ansible service module
+    ansible.builtin.service:
+      name: mysqld
+      state: started
+      enabled: yes
+
+  - name: connect to mysql server # Actually we need to set up root password for this we have mysql module(mysql_info) for connecting to mysql and maria DB servers in ansible
+    community.mysql.mysql_info:
+      login_user: root
+      login_password: "{{ mysql_root_password }}"
+      login_host: mysqlansible.expenseslist.online
+    register: mysql_info
+    ignore_errors: true # When errors come & script gets exited to avoid this we need to set "ignore_errors" as true so that script runs without any disturbance
+
+  
+  - name: print the output
+    ansible.builtin.debug:
+      msg: "MySQL info: {{ mysql_info }}"
+
+    # setting up root password is written only if connection to mysql failes then this below module will run otherwise this section will be skipped.
+    # In our script as connecting to mysql using username and password was successful we are ignoring setting up root password 
+  - name: setup root password # ansible does NOT have root password option module thats why we took command module 
+    ansible.builtin.command: " mysql_secure_installation --set-root-pass {{ mysql_root_password }} "    
+    when: mysql_info.failed is true
