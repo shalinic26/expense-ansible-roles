@@ -21,7 +21,7 @@
     community.mysql.mysql_info:
       login_user: root
       login_password: "{{ mysql_root_password }}"
-      login_host: mysqlar.expenseslist.online
+      login_host: "{{ mysql_host }}"
     register: mysql_info
     ignore_errors: true # When errors come & script gets exited to avoid this we need to set "ignore_errors" as true so that script runs without any disturbance
 
